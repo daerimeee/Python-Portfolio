@@ -1,1 +1,236 @@
+############################## 디 바 이 스 #####################################
 
+import json
+import pandas as pd
+import datetime
+from datetime import date
+today=date.today()
+today=today.isoformat()
+
+with open('/Users/daerim.lee/Downloads/Telegram Desktop/ChatExport_'+today+'/result.json', 'r') as d:
+    device = json.load(d)
+
+df_device = pd.DataFrame(device)
+df_device_m= df_device['messages']
+dict_device = df_device_m.to_dict()
+dict_to_df = pd.DataFrame(dict_device)
+device_all = dict_to_df.transpose()
+device_alarm = device_all[['text']]
+device_date = device_all[['date']]
+device_sample = device_alarm.values.tolist()
+
+device_list = []
+for i in range(len(device_sample)):
+    device_list.append([])
+
+for i in range(len(device_sample)):
+    for j in range(len(device_sample[i])):
+        if type(device_sample[i][0]) == list:
+            for k in range(len(device_sample[i][j])):
+                if type(device_sample[i][j][k]) == str:
+                    result = ''.join(s for s in device_sample[i][j][k])
+                    device_list[i].append(result)
+        else:
+            device_list[i].append(device_sample[i][j])
+
+error_type = []
+for i in range(len(device_list)):
+    if '즉시실행' in device_list[i][0].split():
+        error_type.append('none')
+    else:
+        for i in range(len(device_list)):
+            if '즉시실행' in device_list[i][0].split():
+                error_type.append('none')     
+            elif '시나리오를 실패하였습니다.' in device_list[i][0]:
+                error_type.append('typeI')
+            elif '디바이스 장애로 테스트가 실패했습니다.' in device_list[i][0]:
+                error_type.append('typeF')
+            elif 'NOT_FOUND' in device_list[i][0]:
+                error_type.append('typeE')
+            elif 'LOW_BATTERY' in device_list[i][0]:
+                error_type.append('typeE')
+            elif 'HELPER_HAS_NOT_ACCESSIBILITY' in device_list[i][0]:
+                error_type.append('typeE')
+            elif 'WIFI_DISCONNECT' in device_list[i][0]:
+                error_type.append('typeE')
+            else:
+                error_type.append('none')
+
+
+device_error = pd.DataFrame(error_type)
+device_df = pd.concat([device_date,device_error], axis=1)
+device_df = device_df.rename(columns={0:'error type'})
+device_df2 = device_df[~device_df['error type'].str.contains("none", na=False, case=False)]
+device_df=device_df2.dropna()
+device_df.set_index('date', inplace=True)
+timedate=str(input('첫 기준 날짜 :'))
+
+timedate2=str(input('끝 기준 날짜 :'))
+df3=device_df.loc[timedate:timedate2]
+df4=device_df.reset_index()
+df5=df3.reset_index()
+df6=pd.concat([df4, df5])
+df7=df6.drop_duplicates(['date'], keep = False)
+device_df=df7.set_index(['date'])
+time = datetime.datetime.now().strftime("%Y%m%d")
+device_df.to_csv('/Users/daerim.lee/apptest_ai/telegram/todaydata/'+time + '_device_df.csv')
+
+
+############################## 서 버 #####################################
+
+import json
+import pandas as pd
+import datetime
+from datetime import date
+today=date.today()
+today=today.isoformat()
+
+def make_server_list(server_sample):
+    server_list = []
+    for i in range(len(server_sample)):
+        server_list.append([])
+    return server_list
+
+def run():
+    with open('/Users/daerim.lee/Downloads/Telegram Desktop/ChatExport_'+today+' (1)''/result.json', 'r') as f:
+        json_data = json.load(f)
+
+    df = pd.DataFrame(json_data)
+    df_m = df['messages']
+    dict_server = df_m.to_dict()
+    dict_server_df = pd.DataFrame(dict_server)
+    server_all = dict_server_df.transpose()
+    server_alarm = server_all[['text']]
+    server_date = server_all[['date']]
+    server_sample = server_alarm.values.tolist()
+    server_list = make_server_list(server_sample)
+
+    for i in range(len(server_sample)):
+        for j in range(len(server_sample[i])):
+            if type(server_sample[i][0]) == list:
+                for k in range(len(server_sample[i][j])):
+                    if type(server_sample[i][j][k]) == str:
+                        result = ''.join(s for s in server_sample[i][j][k])
+                        result = result.replace("'","")
+                        server_list[i].append(result)
+                    else:
+                        server_list[i].append("none")
+            else:
+                server_list[i].append(server_sample[i][j])
+
+    error_type_s = []
+    for i in range(len(server_list)):
+        error_type_s.append([])
+
+    for i in range(len(server_list)):
+        for j in range(len(server_list[i])):
+            if 'No route to host' in server_list[i][j]:
+                error_type_s[i].append('typeA')
+            elif 'Connection refused' in server_list[i][j]:
+                error_type_s[i].append('typeA')
+            elif 'monit: FAIL' in server_list[i][j]:
+                error_type_s[i].append('typeB')
+            elif 'Does not exist' in server_list[i][j]:
+                error_type_s[i].append('typeC')
+            elif 'Connection failed' in server_list[i][j]:
+                error_type_s[i].append('typeC')
+            elif 'Execution failed' in server_list[i][j]:
+                error_type_s[i].append('typeC')
+            elif 'Resource limit matched' in server_list[i][j]:
+                error_type_s[i].append('typeG')
+            elif 'ConnectTimeout' in server_list[i][j]:
+                error_type_s[i].append('typeA')
+            else:
+                error_type_s[i].append('none')
+
+    error_type_f = []
+    for i in range(len(error_type_s)):
+        if 'typeA' in error_type_s[i]:
+            error_type_f.append('typeA')
+        elif 'typeB' in error_type_s[i]:
+            error_type_f.append('typeB')
+        elif 'typeC' in error_type_s[i]:
+            error_type_f.append('typeC')
+        elif 'typeG' in error_type_s[i]:
+            error_type_f.append('typeG')
+        elif 'none' in error_type_s[i]:
+            error_type_f.append('none')
+
+    server_error = pd.DataFrame(error_type_f)
+    server_df = pd.concat([server_date,server_error], axis=1)
+    server_df = server_df.rename(columns={0:'error type'})
+    server_df2 = server_df[~server_df['error type'].str.contains("none", na=False, case=False)]
+    server_df=server_df2.dropna()
+    server_df.set_index('date', inplace=True)
+    
+    #날짜 범위 제거
+    timedate=str(input('첫 기준 날짜 :'))
+
+    timedate2=str(input('끝 기준 날짜 :'))
+    df3=server_df.loc[timedate:timedate2]
+    df4=server_df.reset_index()
+    df5=df3.reset_index()
+
+    df6=pd.concat([df4, df5])
+    df7=df6.drop_duplicates(['date'], keep = False)
+    server_df=df7.set_index(['date'])
+    
+    time = datetime.datetime.now().strftime("%Y%m%d")
+    server_df.to_csv('/Users/daerim.lee/apptest_ai/telegram/todaydata/'+time +'_server_df.csv')
+    server_df
+
+if __name__ == '__main__':
+    run()
+
+
+############################## 합 치 기 #####################################
+
+df = pd.read_csv('device_df.csv')
+df2 = pd.read_csv('server_df.csv')
+df3=pd.concat([df, df2], ignore_index=True)
+df3.set_index('date', inplace=True)
+df3.sort_values(by='date', inplace=True)
+time = datetime.datetime.now().strftime("%Y%m%d")
+
+df3.to_csv('/Users/daerim.lee/'+time +'_df.csv')
+
+
+import selenium
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+import time
+import sys
+import pyautogui
+
+dv = webdriver.Chrome('/Users/daerim.lee/apptest_ai/telegram/chromedriver')
+dv.get('https://accounts.google.com/signin/v2/identifier?hl=ko&passive=true&continue=https%3A%2F%2Fwww.google.com%2F&ec=GAZAmgQ&flowName=GlifWebSignIn&flowEntry=ServiceLogin')
+dv.find_element_by_css_selector('#identifierId').click()
+id_=''
+pw=''
+time.sleep(1)
+dv.find_element_by_css_selector('#identifierId').send_keys(id_)
+dv.find_element_by_css_selector('#identifierNext > div > button > span').click()
+time.sleep(1)
+dv.find_element_by_css_selector('#password > div.aCsJod.oJeWuf > div > div.Xb9hP > input').send_keys(pw)
+dv.find_element_by_css_selector('#passwordNext > div > button > span').click()
+time.sleep(1.5)
+dv.get('https://datastudio.google.com/reporting/a4a88431-4c2d-40b4-97a6-e0fd88391dce/page/uiOjC/edit') 
+time.sleep(5)
+
+dv.find_element_by_css_selector('#body > div > div > div.lego-reporting-view.activity-view.no-licensed.new-resizer.left-nav-full.interactive-edit.edit-mode > div.page > div > div.mainBlock.double-panel > div.alignHolder > div.scaleSizeHolder > div > lego-report > lego-canvas-container > div > file-drop-zone > span > content-section > div:nth-child(8) > canvas-component > div > div > div.component > div > gviz-linechart > div > div:nth-child(1) > div > svg > g:nth-child(3) > rect').click()
+time.sleep(2)
+dv.find_element_by_css_selector('#body > div > div > div.lego-reporting-view.activity-view.no-licensed.new-resizer.left-nav-full.interactive-edit.edit-mode > div.page > div > ng2-side-panel > div > mat-drawer-container > mat-drawer > div > legacy-side-panel > div > div > div.editPanel > property-panel > div > form > div.tab-data > div:nth-child(1) > div:nth-child(2) > div > div > div > datasource-picker > div > div > div > div > div > div > div > span > div > div').click()
+time.sleep(4)
+dv.find_element_by_css_selector('#connector-container > div > div > di-config > div > div > div > file-selector > div > div > ng-transclude > div > div > div > div.files-header-buttons-row.layout-row.flex > div.add-file-button-column > file-selector > div > div > button > span > button-content').click()
+
+pyautogui.moveTo(435,577,1)
+pyautogui.click(clicks=2)
+pyautogui.click(clicks=2)
+pyautogui.moveTo(979,885,1)
+pyautogui.click(clicks=2)
+time.sleep(15)
+dv.find_element_by_css_selector('#body > div > div > div.lego-reporting-view.activity-view.no-licensed.new-resizer.left-nav-full.interactive-edit.edit-mode > shade > div > embedded-header > div > div:nth-child(2) > div > button.connect.md-accent.md-raised.md-button.md-data-studio-theme.md-ink-ripple > div').click()
+time.sleep(3)
+dv.find_element_by_css_selector('#mat-dialog-0 > refresh-schema-dialog > div > mat-dialog-actions > button.mat-focus-indicator.gmat-button.mat-raised-button.mat-button-base.mat-primary.ng-star-inserted > span.mat-button-wrapper').click()
+time.sleep(1)
+dv.find_element_by_css_selector('#body > div > div > div.lego-reporting-view.activity-view.no-licensed.new-resizer.left-nav-full.interactive-edit.edit-mode > shade > div > embedded-header > div > div:nth-child(2) > div.header-actions.fade-in.ds-animate.layout-row > div > button > span').click()
