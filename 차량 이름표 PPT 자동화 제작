@@ -1,0 +1,166 @@
+###### 지인의 부탁으로 총 180명의 유아 차량 이름표를 제작 #######
+###### 반 별로, 유아 이름, 주소, 차량 이름으로 분류 #######
+###### 이후 전처리된 데이터를 활용하여 PPT 제작 코드 작성 #######
+
+
+########### 유아 데이터 전처리 코드 ##############
+import pandas as pd
+from ipywidgets import FileUpload
+import io
+import os
+
+def process_data(change):
+    if not change['new']:
+        return
+
+    uploaded_file = change['new'][0]
+    df = pd.read_excel(io.BytesIO(uploaded_file['content']), header=1)
+
+    df['하원'].fillna('정보없음', inplace=True)
+
+    df = df.dropna(subset=[col for col in df.columns if col != '전화번호'])
+
+    df.rename(columns={'연령': '반'}, inplace=True)
+
+    df['반'] = df['반'].str.replace('\d+', '').str.replace(' ', '')
+
+    df['반'] = df['반'].replace({'즐':'즐거운반', '다':'다정한반', '캔':'캔디반', '쿠':'쿠키반', 
+                                '초':'초컬릿반', '솜':'솜사탕반', '하':'하늘누반', '햇':'햇살누리반'})
+
+    df.drop('전화번호', axis=1, inplace=True)
+
+    df.drop('하원', axis=1, inplace=True)
+
+    df['원아명'] = df['원아명'].str[:3]
+
+    df['정차장소'] = df['정차장소'].str.replace('\n', ' ')
+
+    df.sort_values('반', inplace=True)
+
+    df.set_index('반', inplace=True)
+
+    filename = "_".join(df.columns)
+    i = 1
+    while os.path.exists(f"{filename}_{i}.csv"):
+        i += 1
+    df.to_csv(f"{filename}_{i}.csv", encoding='utf-8-sig')
+    print(df.to_string())
+
+upload = FileUpload(description="엑셀 업로드")
+upload.observe(process_data, names='value')
+display(upload)
+
+
+
+############### PPT 제작 코드 #################
+from pptx import Presentation
+from pptx.util import Inches, Cm, Pt
+from pptx.dml.color import RGBColor
+from pptx.enum.text import PP_ALIGN
+import pandas as pd
+
+def create_ppt():
+    color_dict = {
+        '초록': '#049A12',
+        '분홍': '#F963E7',
+        '노랑': '#FDC800'
+    }
+
+    textbox1_text = input("첫번째 텍스트 박스의 문자 입력: ")
+    textbox1_number = input("첫번째 텍스트 박스의 숫자 입력: ")
+    textbox1_color = input("첫번째 텍스트 박스의 숫자 색상 입력(초록, 분홍, 노랑): ")
+
+    textbox1_color_hex = color_dict[textbox1_color]
+    textbox1_color_rgb = RGBColor(int(textbox1_color_hex[1:3], 16), int(textbox1_color_hex[3:5], 16), int(textbox1_color_hex[5:7], 16))
+
+    df = pd.read_csv('data.csv')
+
+    df = df.dropna()
+    prs = Presentation()
+
+    slide_width = int(29.7 * Cm(1))
+    slide_height = int(21.0 * Cm(1))
+    prs.slide_width = slide_width
+    prs.slide_height = slide_height
+
+    slide_layout = prs.slide_layouts[6]
+
+    img_path = 'image.jpg' 
+
+    left = Cm(0.65) 
+    top = Cm(0.55)
+    width = Cm(7.6)
+    height = Cm(8.1)
+    gap = Cm(0.3)
+
+    for idx, row in df.iterrows():
+        if idx % 6 == 0:
+            slide = prs.slides.add_slide(slide_layout)
+
+        i, j = idx % 6 // 3, idx % 6 % 3
+
+        pic = slide.shapes.add_picture(img_path, left + j*(width + gap), top + i*(height + gap), width, height)
+
+        left_tb1 = left + j*(width + gap) + Cm(3.01 - 0.77)
+        top_tb1 = top + i*(height + gap) + Cm(0.25 - 0.71)
+        width_tb1 = Cm(4.21)
+        height_tb1 = Cm(3.16)
+
+        a = slide.shapes.add_textbox(left_tb1, top_tb1, width_tb1, height_tb1)
+        tf = a.text_frame
+
+        p = tf.add_paragraph()
+        run = p.add_run()
+        run.text = textbox1_text
+        run.font.name = 'Sandoll 삼립호빵체 Basic'
+        run.font.size = Pt(32) 
+        run.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
+
+        run = p.add_run()
+        run.text = textbox1_number
+        run.font.name = 'Sandoll 삼립호빵체 Basic'
+        run.font.size = Pt(44) 
+        run.font.color.rgb = textbox1_color_rgb 
+
+        left_tb2 = left + j*(width + gap) + Cm(1.3 - 0.77)
+        top_tb2 = top + i*(height + gap) + Cm(2.28 - 0.71)
+        width_tb2 = Cm(3.71)
+        height_tb2 = Cm(1.28)
+
+        b = slide.shapes.add_textbox(left_tb2, top_tb2, width_tb2, height_tb2)
+        tf = b.text_frame
+        p = tf.add_paragraph()
+        p.text = row['반']
+        p.font.name = 'Sandoll 삼립호빵체 Basic'
+        p.font.size = Pt(24) 
+        p.font.color.rgb = textbox1_color_rgb 
+
+        left_tb3 = left + j*(width + gap) + Cm(1.27 - 0.77)
+        top_tb3 = top + i*(height + gap) + Cm(3.06 - 0.71)
+        width_tb3 = Cm(4.23)
+        height_tb3 = Cm(2.91)
+
+        c = slide.shapes.add_textbox(left_tb3, top_tb3, width_tb3, height_tb3)
+        tf = c.text_frame
+        p = tf.add_paragraph()
+        p.text = row['원아명']
+        p.font.name = 'Sandoll 삼립호빵체 Basic'
+        p.font.size = Pt(44) 
+
+        left_tb4 = left + j*(width + gap) + Cm(2.22 - 0.77)
+        top_tb4 = top + i*(height + gap) + Cm(6.97 - 0.71)
+        width_tb4 = Cm(4.71)
+        height_tb4 = Cm(1.62)
+
+        d = slide.shapes.add_textbox(left_tb4, top_tb4, width_tb4, height_tb4)
+        tf = d.text_frame
+        p = tf.add_paragraph()
+        p.text = row['정차장소']
+        p.font.name = 'Sandoll 삼립호빵체 Basic'
+        p.font.size = Pt(14) # 폰트 크기 설정
+        p.font.color.rgb = RGBColor(166, 166, 166) 
+        p.alignment = PP_ALIGN.CENTER 
+
+    prs.save(textbox1_text + textbox1_number + textbox1_color + '.pptx')
+    
+create_ppt()
