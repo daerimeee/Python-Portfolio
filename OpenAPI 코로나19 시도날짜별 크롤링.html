@@ -1,0 +1,43 @@
+############## 코로나19 공공데이터 api 기초 활용 ###############
+
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+from datetime import date, timedelta
+
+YY = int(input("기준 년도를 입력하세요(예:2020):"))
+mm = int(input("기준 월을 입력하세요(예:7):"))
+dd = int(input("기준 일을 입력하세요(예:3):"))
+period = int(input('크롤링 하고자 하는 기간을 입력해 주세요: '))
+start_date = date(YY, mm, dd)
+timegap = timedelta(days=period)
+start_date = start_date - timegap
+start_date = start_date.strftime('%Y-%m-%d')
+
+range_date = pd.date_range(start_date, periods=period, freq='D')
+
+key = 'S5FgzVMaI4VnSdDKqpL5KZxsUmhhyDuYp5uEtbgdkcjiNs15Aw4199t39wANmq%2BTUjhIm999jORaRGsMwuUDrQ%3D%3D'
+numOfRows = '19'
+url1 = 'http://openapi.data.go.kr/openapi/service/rest/Covid19/getCovid19SidoInfStateJson?serviceKey='+key
+con_lst=[]
+
+for today in range_date:
+    url2 = '&pageNo=1&numOfRows='+numOfRows+'&startCreateDt='
+            +today.strftime('%Y%m%d')+'&endCreateDt='+today.strftime('%Y%m%d')
+    url = url1+url2
+    xml = requests.get(url)
+    soup = BeautifulSoup(xml.text,'html.parser')
+    
+    data_lst = soup.find_all('item')
+    for item in data_lst:
+        DEF_CNT = item.find('defcnt').text # 확진자수'
+        GUBUN = item.find('gubun').text # 지역'
+        INC_DEC = item.find('incdec').text #전일대비 증감'
+        STD_DAY = item.find('stdday').text # 기준일'
+        ISOL_ING_CNT = item.find('isolingcnt').text#격리자수'
+        OVER_FLOW_CNT = item.find('overflowcnt').text #해외유입'
+        LOCAL_OCC_CNT = item.find('localocccnt').text #지역감염'
+        con_lst.append({'기준일':STD_DAY,'지역':GUBUN,
+                        '격리자수':ISOL_ING_CNT,
+                        '확진자수':DEF_CNT,'전일대비증감':INC_DEC,
+                        '지역감염':LOCAL_OCC_CNT,'해외유입':OVER_FLOW_CNT})
